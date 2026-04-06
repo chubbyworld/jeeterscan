@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model WalletAnalysis {
+  id                        String     @id @default(cuid())
+  walletAddress             String
+  status                    String     @default("processing") // processing | partial | complete | failed
+  completedPairs            Int        @default(0)
+  pricedTrades              Int        @default(0)
+  
+  // High Confidence Summary
+  confirmedMissedEth        Float?     @default(0)
+  confirmedMissedUsd        Float?     @default(0)
+  
+  // Moderate Confidence Summary
+  estimatedMissedEth        Float?     @default(0)
+  estimatedMissedUsd        Float?     @default(0)
+  
+  // Theoretical Summary
+  maxRegretEth              Float?     @default(0)
+  maxRegretUsd              Float?     @default(0)
+
+  walletTradingVolume       Float?     @default(0)
+  walletTradingVolumeUsd    Float?     @default(0)
+  openseaFeesPaid           Float?     @default(0)
+  openseaFeesUsd            Float?     @default(0)
+  estimatedRoyaltyFeesPaid  Float?     @default(0)
+  estimatedRoyaltyFeesUsd   Float?     @default(0)
+  
+  earliestRelevantTradeDate DateTime?
+  latestRelevantTradeDate   DateTime?
+  incomingTransfersScanned  Int        @default(0)
+  outgoingTransfersScanned  Int        @default(0)
+  collectionsAnalyzed       Int        @default(0)
+  coverageLabel             String?
+  startedAt                 DateTime   @default(now())
+  finishedAt                DateTime?
+
+  trades                    NFTTrade[]
+
+  @@index([walletAddress])
+}
+
+model NFTTrade {
+  id                  String   @id @default(cuid())
+  analysisId          String
+  analysis            WalletAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  
+  contractAddress     String
+  tokenId             String
+  collectionName      String?
+  imageUrl            String?
+  
+  acquisitionType     String?   // mint_free | mint_paid | secondary_buy
+  acquisitionCostEth  Float?
+  buyTimestamp        DateTime?
+  
+  sellPriceEth        Float?
+  sellTimestamp       DateTime?
+  heldDurationDays    Int?
+  
+  peakPriceAfterSale  Float?
+  peakTimestamp       DateTime?
+  daysToPeak          Int?
+  missedProfitEth     Float?
+  
+  confidence          String   @default("Medium") // High | Medium | Low
+  pricingSource       String   @default("collection_floor") // exact_resale | trait_comp | collection_floor | bundle_estimate
+  
+  pricingMode         String   @default("collection") // collection | token
+  createdAt           DateTime @default(now())
+
+  @@index([analysisId])
+}
+
+model CollectionSaleCache {
+  id              String   @id @default(cuid())
+  contractAddress String
+  fetchedAt       DateTime @default(now())
+  salesData       Json
+
+  @@index([contractAddress])
+}
